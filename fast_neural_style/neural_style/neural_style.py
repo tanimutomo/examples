@@ -29,11 +29,14 @@ def check_paths(args):
 
 
 def train(args):
+    # Define the device
     device = torch.device("cuda" if args.cuda else "cpu")
 
+    # seed
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
+    # transform and dataset
     transform = transforms.Compose([
         transforms.Resize(args.image_size),
         transforms.CenterCrop(args.image_size),
@@ -43,19 +46,23 @@ def train(args):
     train_dataset = datasets.ImageFolder(args.dataset, transform)
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size)
 
+    # model, optimizer, and mse-loss
     transformer = TransformerNet().to(device)
     optimizer = Adam(transformer.parameters(), args.lr)
     mse_loss = torch.nn.MSELoss()
 
+    # feature and style loss
     vgg = Vgg16(requires_grad=False).to(device)
     style_transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Lambda(lambda x: x.mul(255))
     ])
+    # load and preprocess the style reference image
     style = utils.load_image(args.style_image, size=args.style_size)
     style = style_transform(style)
     style = style.repeat(args.batch_size, 1, 1, 1).to(device)
 
+    # The features and gram matrix of referenced style image
     features_style = vgg(utils.normalize_batch(style))
     gram_style = [utils.gram_matrix(y) for y in features_style]
 
